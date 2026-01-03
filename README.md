@@ -1,6 +1,7 @@
 💸 TipManager
 Esta es una pequeña aplicación que hice para resolver un problema típico en el trabajo: ¿Cómo repartir las propinas de forma justa? En lugar de usar sistemas raros o de puntos, decidí que lo más honesto era repartirlas por horas trabajadas. Si trabajas más, te llevas un poco más del bote. Así de simple.
-
+### 🔗 Prueba la app aquí:
+[Ver Demo en Vivo](https://pro-tip-share.vercel.app/)
 🛠️ Lo que usé
 Soy aprendiz y este es uno de mis primeros proyectos reales, así que me enfoqué en que funcionara bien usando:
 

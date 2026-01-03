@@ -1,73 +1,27 @@
-# React + TypeScript + Vite
+💸 TipManager
+Esta es una pequeña aplicación que hice para resolver un problema típico en el trabajo: ¿Cómo repartir las propinas de forma justa? En lugar de usar sistemas raros o de puntos, decidí que lo más honesto era repartirlas por horas trabajadas. Si trabajas más, te llevas un poco más del bote. Así de simple.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+🛠️ Lo que usé
+Soy aprendiz y este es uno de mis primeros proyectos reales, así que me enfoqué en que funcionara bien usando:
 
-Currently, two official plugins are available:
+React y TypeScript: Para que la app sea rápida y el código no se rompa.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+LocalStorage: Para que si cierras la pestaña por error, no pierdas los datos del día.
 
-## React Compiler
+React Router: Para dejar la estructura lista por si en el futuro quiero añadir más páginas.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+💡 ¿Qué hace la app?
+Pones cuánto dinero hay en el bote.
 
-## Expanding the ESLint configuration
+Añades a tus compañeros y cuántas horas han echado.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+La app hace la cuenta sola y te dice cuánto le toca a cada uno sin errores.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Puedes editar o borrar si te equivocas en algo.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+🧠 Mi experiencia haciendo esto
+Empecé con una hoja en blanco y con la mente igual 🫥. Aprendí a manejar los "estados" de React (que el dinero se actualice para todos a la vez) y a que el diseño se vea limpio y fácil de usar en un móvil mientras estás trabajando.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+No es una app gigante, pero es mi app y estoy orgulloso de que funcione de principio a fin.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```

@@ -91,10 +91,6 @@ const handlerAgregarBote = () => {
     setHoras(0);
   };
 
-  useEffect(() => {
-    /////////
-  }, [boteGuardado]);
-
   const handlerEliminarBote = () => {
     setBoteGuardado(null);
     localStorage.removeItem("boteGuardado");

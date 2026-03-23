@@ -1,85 +1,84 @@
+import { useEffect, useState } from 'react'
+import { fetchWeeklyGrid } from '../services/tips'
 import type { WeeklyGridResponse } from '../types/api'
 
-const previewGrid: WeeklyGridResponse = {
-  start_date: '2026-03-16',
-  end_date: '2026-03-22',
-  week_total: '860.00',
-  business_settings: {
-    default_distribution_method: 'weight_hours',
-  },
-  days: [
-    {
-      daily_tip_id: 1,
-      date: '2026-03-16',
-      total_amount: '120.00',
-      distribution_method: 'weight_hours',
-      is_closed: true,
-      distributed_total: '120.00',
-    },
-    {
-      daily_tip_id: 2,
-      date: '2026-03-17',
-      total_amount: '95.00',
-      distribution_method: 'hours',
-      is_closed: false,
-      distributed_total: '95.00',
-    },
-  ],
-  workers: [
-    {
-      user_id: 1,
-      username: 'ana',
-      first_name: 'Ana',
-      last_name: 'Lopez',
-      display_name: 'Ana Lopez',
-      role: 'waiter',
-      weekly_total: '235.00',
-      days: {
-        '2026-03-16': {
-          daily_tip_id: 1,
-          hours_worked: '8.00',
-          amount: '68.00',
-          role_at_time: 'waiter',
-          weight_at_time: '1.00',
-        },
-        '2026-03-17': {
-          daily_tip_id: 2,
-          hours_worked: '5.00',
-          amount: '42.00',
-          role_at_time: 'waiter',
-          weight_at_time: '1.00',
-        },
-      },
-    },
-    {
-      user_id: 2,
-      username: 'luis',
-      first_name: 'Luis',
-      last_name: 'Soto',
-      display_name: 'Luis Soto',
-      role: 'kitchen',
-      weekly_total: '70.00',
-      days: {
-        '2026-03-16': {
-          daily_tip_id: 1,
-          hours_worked: '4.00',
-          amount: '27.00',
-          role_at_time: 'kitchen',
-          weight_at_time: '0.80',
-        },
-        '2026-03-17': {
-          daily_tip_id: 2,
-          hours_worked: '4.00',
-          amount: '20.00',
-          role_at_time: 'kitchen',
-          weight_at_time: '0.80',
-        },
-      },
-    },
-  ],
-}
-
 export function WeeklyGridPage() {
+  const [weeklyGrid, setWeeklyGrid] = useState<WeeklyGridResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let ignore = false
+
+    async function loadWeeklyGrid() {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await fetchWeeklyGrid()
+        if (!ignore) {
+          setWeeklyGrid(response)
+        }
+      } catch (loadError) {
+        if (!ignore) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'No se pudo cargar la vista semanal.',
+          )
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadWeeklyGrid()
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  if (isLoading) {
+    return (
+      <section className="page">
+        <header className="page-header-block">
+          <div>
+            <p className="eyebrow">Pantalla 1</p>
+            <h2 className="page-title">Vista semanal</h2>
+          </div>
+        </header>
+
+        <section className="card">
+          <p className="muted">Cargando vista semanal...</p>
+        </section>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section className="page">
+        <header className="page-header-block">
+          <div>
+            <p className="eyebrow">Pantalla 1</p>
+            <h2 className="page-title">Vista semanal</h2>
+          </div>
+        </header>
+
+        <section className="card">
+          <p className="muted">{error}</p>
+        </section>
+      </section>
+    )
+  }
+
+  if (!weeklyGrid) {
+    return null
+  }
+
   return (
     <section className="page">
       <header className="page-header-block">
@@ -87,14 +86,14 @@ export function WeeklyGridPage() {
           <p className="eyebrow">Pantalla 1</p>
           <h2 className="page-title">Vista semanal</h2>
           <p className="muted">
-            Esta página ya está preparada para consumir <code>weekly-grid</code> y pintar la grilla
-            comparativa.
+            Esta página ya consume <code>weekly-grid</code> y pinta la grilla comparativa con
+            datos reales del backend.
           </p>
         </div>
 
         <div className="summary-pill">
           <span>Método actual</span>
-          <strong>{previewGrid.business_settings.default_distribution_method}</strong>
+          <strong>{weeklyGrid.business_settings.default_distribution_method}</strong>
         </div>
       </header>
 
@@ -103,12 +102,12 @@ export function WeeklyGridPage() {
           <div className="stat">
             <span className="stat-label">Semana</span>
             <strong>
-              {previewGrid.start_date} - {previewGrid.end_date}
+              {weeklyGrid.start_date} - {weeklyGrid.end_date}
             </strong>
           </div>
           <div className="stat">
             <span className="stat-label">Total semanal</span>
-            <strong>{previewGrid.week_total} EUR</strong>
+            <strong>{weeklyGrid.week_total} EUR</strong>
           </div>
         </div>
       </section>
@@ -119,7 +118,7 @@ export function WeeklyGridPage() {
             <thead>
               <tr>
                 <th>Trabajador</th>
-                {previewGrid.days.map((day) => (
+                {weeklyGrid.days.map((day) => (
                   <th key={day.date}>
                     <div className="day-head">
                       <span>{day.date}</span>
@@ -132,7 +131,7 @@ export function WeeklyGridPage() {
               </tr>
             </thead>
             <tbody>
-              {previewGrid.workers.map((worker) => (
+              {weeklyGrid.workers.map((worker) => (
                 <tr key={worker.user_id}>
                   <td>
                     <div className="worker-cell">
@@ -140,7 +139,7 @@ export function WeeklyGridPage() {
                       <span>{worker.role}</span>
                     </div>
                   </td>
-                  {previewGrid.days.map((day) => {
+                  {weeklyGrid.days.map((day) => {
                     const cell = worker.days[day.date]
 
                     return (

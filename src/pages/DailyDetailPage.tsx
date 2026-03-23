@@ -1,91 +1,101 @@
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { fetchDailyDetail } from '../services/tips'
 import type { DailyDetailResponse } from '../types/api'
-
-const previewDetail: DailyDetailResponse = {
-  id: 2,
-  date: '2026-03-17',
-  total_amount: '95.00',
-  distribution_method: 'hours',
-  created_by: {
-    id: 99,
-    username: 'admin_test',
-    first_name: 'Admin',
-    last_name: 'Fairtip',
-    email: null,
-    role: 'manager',
-  },
-  created_at: '2026-03-17T21:03:00Z',
-  is_closed: false,
-  closed_at: null,
-  closed_by: null,
-  participations: [],
-  distributions: [],
-  worker_rows: [
-    {
-      user_id: 1,
-      username: 'ana',
-      first_name: 'Ana',
-      last_name: 'Lopez',
-      display_name: 'Ana Lopez',
-      role: 'waiter',
-      hours_worked: '5.00',
-      weight_at_time: '1.00',
-      amount: '42.00',
-    },
-    {
-      user_id: 2,
-      username: 'luis',
-      first_name: 'Luis',
-      last_name: 'Soto',
-      display_name: 'Luis Soto',
-      role: 'kitchen',
-      hours_worked: '4.00',
-      weight_at_time: '0.80',
-      amount: '20.00',
-    },
-  ],
-  history: [
-    {
-      id: 1,
-      event_type: 'created',
-      message: 'Se creo el bote diario con un total de 95.00 EUR.',
-      reason: '',
-      old_value: null,
-      new_value: null,
-      happened_after_closure: false,
-      changed_by: {
-        id: 99,
-        username: 'admin_test',
-        first_name: 'Admin',
-        last_name: 'Fairtip',
-        email: null,
-        role: 'manager',
-      },
-      created_at: '2026-03-17T21:03:00Z',
-    },
-    {
-      id: 2,
-      event_type: 'hours_updated',
-      message: 'Se actualizo la participacion de Luis Soto.',
-      reason: 'Faltaba una hora al cerrar caja.',
-      old_value: null,
-      new_value: null,
-      happened_after_closure: true,
-      changed_by: {
-        id: 99,
-        username: 'admin_test',
-        first_name: 'Admin',
-        last_name: 'Fairtip',
-        email: null,
-        role: 'manager',
-      },
-      created_at: '2026-03-17T21:10:00Z',
-    },
-  ],
-}
 
 export function DailyDetailPage() {
   const { dailyTipId } = useParams()
+  const [dailyDetail, setDailyDetail] = useState<DailyDetailResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const parsedDailyTipId = Number(dailyTipId)
+
+    if (!dailyTipId || Number.isNaN(parsedDailyTipId) || parsedDailyTipId <= 0) {
+      setError('El identificador del día no es válido.')
+      setIsLoading(false)
+      return
+    }
+
+    let ignore = false
+
+    async function loadDailyDetail() {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const response = await fetchDailyDetail(parsedDailyTipId)
+        if (!ignore) {
+          setDailyDetail(response)
+        }
+      } catch (loadError) {
+        if (!ignore) {
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : 'No se pudo cargar el detalle del día.',
+          )
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadDailyDetail()
+
+    return () => {
+      ignore = true
+    }
+  }, [dailyTipId])
+
+  if (isLoading) {
+    return (
+      <section className="page">
+        <header className="page-header-block">
+          <div>
+            <p className="eyebrow">Pantalla 2</p>
+            <h2 className="page-title">Detalle del día {dailyTipId}</h2>
+          </div>
+
+          <Link className="btn ghost" to="/dashboard/weekly">
+            Volver a semana
+          </Link>
+        </header>
+
+        <section className="card">
+          <p className="muted">Cargando detalle del día...</p>
+        </section>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section className="page">
+        <header className="page-header-block">
+          <div>
+            <p className="eyebrow">Pantalla 2</p>
+            <h2 className="page-title">Detalle del día {dailyTipId}</h2>
+          </div>
+
+          <Link className="btn ghost" to="/dashboard/weekly">
+            Volver a semana
+          </Link>
+        </header>
+
+        <section className="card">
+          <p className="muted">{error}</p>
+        </section>
+      </section>
+    )
+  }
+
+  if (!dailyDetail) {
+    return null
+  }
 
   return (
     <section className="page">
@@ -94,8 +104,8 @@ export function DailyDetailPage() {
           <p className="eyebrow">Pantalla 2</p>
           <h2 className="page-title">Detalle del día {dailyTipId}</h2>
           <p className="muted">
-            Página preparada para usar <code>daily-detail</code>, <code>available-workers</code> y
-            las acciones de edición del día.
+            Esta página ya consume <code>daily-detail</code> y muestra el reparto real, junto con
+            el historial del día.
           </p>
         </div>
 
@@ -108,19 +118,19 @@ export function DailyDetailPage() {
         <div className="stats-row">
           <div className="stat">
             <span className="stat-label">Fecha</span>
-            <strong>{previewDetail.date}</strong>
+            <strong>{dailyDetail.date}</strong>
           </div>
           <div className="stat">
             <span className="stat-label">Bote total</span>
-            <strong>{previewDetail.total_amount} EUR</strong>
+            <strong>{dailyDetail.total_amount} EUR</strong>
           </div>
           <div className="stat">
             <span className="stat-label">Método</span>
-            <strong>{previewDetail.distribution_method}</strong>
+            <strong>{dailyDetail.distribution_method}</strong>
           </div>
           <div className="stat">
             <span className="stat-label">Estado</span>
-            <strong>{previewDetail.is_closed ? 'Cerrado' : 'Abierto'}</strong>
+            <strong>{dailyDetail.is_closed ? 'Cerrado' : 'Abierto'}</strong>
           </div>
         </div>
 
@@ -157,7 +167,7 @@ export function DailyDetailPage() {
               </tr>
             </thead>
             <tbody>
-              {previewDetail.worker_rows.map((worker) => (
+              {dailyDetail.worker_rows.map((worker) => (
                 <tr key={worker.user_id}>
                   <td>{worker.display_name}</td>
                   <td>{worker.role}</td>
@@ -180,7 +190,7 @@ export function DailyDetailPage() {
         </div>
 
         <div className="history-list">
-          {previewDetail.history.map((entry) => (
+          {dailyDetail.history.map((entry) => (
             <article className="history-item" key={entry.id}>
               <div className="history-meta">
                 <strong>{entry.changed_by?.username ?? 'Sistema'}</strong>

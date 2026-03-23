@@ -1,10 +1,9 @@
 :root {
-  font-family: "Inter", "SF Pro Display", "Segoe UI", "Helvetica Neue", Arial,
-    sans-serif;
+  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   line-height: 1.6;
   font-weight: 500;
-  color: #0f172a;
-  background-color: #f6f8fb;
+  color: #132122;
+  background-color: #f3f0e3;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -21,8 +20,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #f6f8fb;
-  color: #0f172a;
+  background: #f3f0e3;
+  color: #132122;
 }
 
 a {

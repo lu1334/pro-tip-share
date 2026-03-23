@@ -1,17 +1,8 @@
-import { Routes,Route } from 'react-router-dom'
-import { Empleados } from './components/Empleados'
+import { AppRouter } from './app/AppRouter'
 import './App.css'
 
 function App() {
- 
-
-  return (
-    <>
-    <Routes>
-      <Route path='/' element={<Empleados/>}></Route>
-    </Routes>
-    </>
-  )
+  return <AppRouter />
 }
 
 export default App

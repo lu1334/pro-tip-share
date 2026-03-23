@@ -1,6 +1,16 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { useAuthStore } from '../store/authStore'
 
 export function AppLayout() {
+  const navigate = useNavigate()
+  const user = useAuthStore((state) => state.user)
+  const logout = useAuthStore((state) => state.logout)
+
+  function handleLogout() {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -10,6 +20,11 @@ export function AppLayout() {
           <p className="muted">
             Base de frontend preparada para autenticación, vista semanal y detalle diario.
           </p>
+          {user ? (
+            <p className="muted">
+              Sesión actual: <strong>{user.username}</strong>
+            </p>
+          ) : null}
         </div>
 
         <nav className="nav">
@@ -21,22 +36,9 @@ export function AppLayout() {
           >
             Semana
           </NavLink>
-          <NavLink
-            to="/daily/demo"
-            className={({ isActive }) =>
-              isActive ? 'nav-link nav-link--active' : 'nav-link'
-            }
-          >
-            Detalle del día
-          </NavLink>
-          <NavLink
-            to="/login"
-            className={({ isActive }) =>
-              isActive ? 'nav-link nav-link--active' : 'nav-link'
-            }
-          >
-            Login
-          </NavLink>
+          <button className="nav-link" type="button" onClick={handleLogout}>
+            Cerrar sesión
+          </button>
         </nav>
       </aside>
 

@@ -1,21 +1,33 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { getAccessToken, loginUser, saveAuthTokens } from '../services/auth'
 import { getApiBaseUrl } from '../services/api'
+import { useAuthStore } from '../store/authStore'
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const user = useAuthStore((state) => state.user)
+  const isBootstrapping = useAuthStore((state) => state.isBootstrapping)
+  const setAuthenticatedUser = useAuthStore((state) => state.setAuthenticatedUser)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const redirectTo =
+    typeof location.state === 'object' &&
+    location.state !== null &&
+    'from' in location.state &&
+    typeof location.state.from === 'string'
+      ? location.state.from
+      : '/dashboard/weekly'
 
   useEffect(() => {
-    if (getAccessToken()) {
-      navigate('/dashboard/weekly', { replace: true })
+    if (!isBootstrapping && user && getAccessToken()) {
+      navigate(redirectTo, { replace: true })
     }
-  }, [navigate])
+  }, [isBootstrapping, navigate, redirectTo, user])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -31,7 +43,8 @@ export function LoginPage() {
     try {
       const response = await loginUser(username.trim(), password)
       saveAuthTokens(response.access, response.refresh)
-      navigate('/dashboard/weekly', { replace: true })
+      setAuthenticatedUser(response.user)
+      navigate(redirectTo, { replace: true })
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : 'No se pudo iniciar sesión.',

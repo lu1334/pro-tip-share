@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { DailyDetailActionsPanel } from '../components/daily-detail/DailyDetailActionsPanel'
+import { DailyDetailHeader } from '../components/daily-detail/DailyDetailHeader'
+import { DailyHistoryList } from '../components/daily-detail/DailyHistoryList'
+import { DailyWorkersTable } from '../components/daily-detail/DailyWorkersTable'
 import { UnauthorizedError } from '../services/auth'
 import {
   closeDailyTip,
@@ -470,35 +474,9 @@ export function DailyDetailPage() {
     return null
   }
 
-  const workerCount = dailyDetail.worker_rows.length
-  const historyCount = dailyDetail.history.length
-  const statusLabel = dailyDetail.is_closed ? 'Cerrado' : 'Abierto'
-  const statusDescription = dailyDetail.is_closed
-    ? 'El día está bloqueado y cualquier cambio debe quedar trazado.'
-    : 'El día sigue abierto y se puede ajustar antes del cierre.'
-
   return (
     <section className="page">
-      <header className="page-header-block">
-        <div>
-          <p className="eyebrow">Pantalla 2</p>
-          <h2 className="page-title">Detalle del día {dailyDetail.date}</h2>
-          <p className="muted">
-            Gestiona el bote, el reparto y el historial del día sin salir de esta pantalla.
-          </p>
-        </div>
-
-        <div className="detail-header-side">
-          <div className="summary-pill">
-            <span>Estado del día</span>
-            <strong>{statusLabel}</strong>
-          </div>
-
-          <Link className="btn ghost" to="/dashboard/weekly">
-            Volver a semana
-          </Link>
-        </div>
-      </header>
+      <DailyDetailHeader dailyDetail={dailyDetail} />
 
       {actionError ? (
         <section className="alert-banner" role="alert">
@@ -507,490 +485,77 @@ export function DailyDetailPage() {
         </section>
       ) : null}
 
-      <section className="card detail-hero">
-        <div className="detail-hero-top">
-          <div>
-            <p className="eyebrow">Resumen</p>
-            <h3 className="section-title">Estado general del día</h3>
-            <p className="muted">{statusDescription}</p>
-          </div>
-          <span
-            className={`status-chip ${dailyDetail.is_closed ? 'status-chip--closed' : 'status-chip--open'}`}
-          >
-            {statusLabel}
-          </span>
-        </div>
-
-        <div className="stats-row">
-          <div className="stat">
-            <span className="stat-label">Fecha</span>
-            <strong>{dailyDetail.date}</strong>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Bote total</span>
-            <strong>{dailyDetail.total_amount} EUR</strong>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Método</span>
-            <strong>{dailyDetail.distribution_method}</strong>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Trabajadores</span>
-            <strong>{workerCount}</strong>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Eventos</span>
-            <strong>{historyCount}</strong>
-          </div>
-        </div>
-      </section>
-
       <section className="detail-main-grid">
-        <section className="card">
-          <div className="card-header">
-            <div>
-              <p className="eyebrow">Acciones</p>
-              <h3 className="section-title">Cambios del día</h3>
-              <p className="muted">Las acciones mantienen la trazabilidad actual del backend.</p>
-            </div>
-          </div>
+        <DailyDetailActionsPanel
+          dailyDetail={dailyDetail}
+          isSubmittingAction={isSubmittingAction}
+          isEditingTotalAmount={isEditingTotalAmount}
+          isConfirmingClosedState={isConfirmingClosedState}
+          isAddingWorker={isAddingWorker}
+          draftTotalAmount={draftTotalAmount}
+          draftTotalAmountReason={draftTotalAmountReason}
+          availableWorkers={availableWorkers}
+          selectedWorkerId={selectedWorkerId}
+          draftWorkerHours={draftWorkerHours}
+          draftWorkerReason={draftWorkerReason}
+          onOpenAddWorkerForm={handleOpenAddWorkerForm}
+          onToggleEditTotalAmount={() => {
+            setActionError(null)
+            setIsEditingTotalAmount((current) => !current)
+            setIsConfirmingClosedState(false)
+            setIsAddingWorker(false)
+          }}
+          onToggleClosedState={() => {
+            setActionError(null)
+            setIsConfirmingClosedState((current) => !current)
+            setIsEditingTotalAmount(false)
+            setIsAddingWorker(false)
+          }}
+          onSubmitTotalAmount={handleSubmitTotalAmount}
+          onDraftTotalAmountChange={setDraftTotalAmount}
+          onDraftTotalAmountReasonChange={setDraftTotalAmountReason}
+          onCancelEditTotalAmount={() => {
+            setDraftTotalAmount(dailyDetail.total_amount)
+            setDraftTotalAmountReason('')
+            setIsEditingTotalAmount(false)
+            setActionError(null)
+          }}
+          onConfirmClosedState={handleConfirmClosedState}
+          onCancelClosedState={() => {
+            setIsConfirmingClosedState(false)
+            setActionError(null)
+          }}
+          onSubmitAddWorker={handleSubmitAddWorker}
+          onSelectedWorkerIdChange={setSelectedWorkerId}
+          onDraftWorkerHoursChange={setDraftWorkerHours}
+          onDraftWorkerReasonChange={setDraftWorkerReason}
+          onCancelAddWorker={() => {
+            setIsAddingWorker(false)
+            setActionError(null)
+          }}
+        />
 
-          <div className="actions-bar">
-            <button
-              className="btn primary"
-              type="button"
-              onClick={handleOpenAddWorkerForm}
-              disabled={isSubmittingAction}
-            >
-              {isAddingWorker ? 'Recargar trabajadores' : 'Añadir trabajador'}
-            </button>
-            <button
-              className="btn ghost"
-              type="button"
-              onClick={() => {
-                setActionError(null)
-                setIsEditingTotalAmount((current) => !current)
-                setIsConfirmingClosedState(false)
-                setIsAddingWorker(false)
-              }}
-              disabled={isSubmittingAction}
-            >
-              {isEditingTotalAmount ? 'Cancelar edición' : 'Editar bote'}
-            </button>
-            <button
-              className="btn ghost"
-              type="button"
-              onClick={() => {
-                setActionError(null)
-                setIsConfirmingClosedState((current) => !current)
-                setIsEditingTotalAmount(false)
-                setIsAddingWorker(false)
-              }}
-              disabled={isSubmittingAction}
-            >
-              {isConfirmingClosedState
-                ? 'Cancelar cambio de estado'
-                : dailyDetail.is_closed
-                  ? 'Reabrir día'
-                  : 'Cerrar día'}
-            </button>
-          </div>
-
-          <div className="detail-side-stack">
-            {isEditingTotalAmount ? (
-              <form className="panel-card stack gap-md" onSubmit={handleSubmitTotalAmount}>
-                <div className="panel-card-header">
-                  <div>
-                    <p className="eyebrow">Bote</p>
-                    <h4 className="section-title">Editar total del día</h4>
-                  </div>
-                </div>
-
-                <div className="field">
-                  <label className="label" htmlFor="total-amount">
-                    Nuevo bote total
-                  </label>
-                  <input
-                    id="total-amount"
-                    className="input"
-                    value={draftTotalAmount}
-                    onChange={(event) => setDraftTotalAmount(event.target.value)}
-                    disabled={isSubmittingAction}
-                  />
-                </div>
-
-                {dailyDetail.is_closed ? (
-                  <div className="field">
-                    <label className="label" htmlFor="total-amount-reason">
-                      Motivo del cambio
-                    </label>
-                    <input
-                      id="total-amount-reason"
-                      className="input"
-                      value={draftTotalAmountReason}
-                      onChange={(event) => setDraftTotalAmountReason(event.target.value)}
-                      disabled={isSubmittingAction}
-                    />
-                  </div>
-                ) : null}
-
-                <div className="actions-bar">
-                  <button className="btn primary" type="submit" disabled={isSubmittingAction}>
-                    Guardar bote
-                  </button>
-                  <button
-                    className="btn ghost"
-                    type="button"
-                    onClick={() => {
-                      setDraftTotalAmount(dailyDetail.total_amount)
-                      setDraftTotalAmountReason('')
-                      setIsEditingTotalAmount(false)
-                      setActionError(null)
-                    }}
-                    disabled={isSubmittingAction}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </form>
-            ) : null}
-
-            {isConfirmingClosedState ? (
-              <div className="panel-card stack gap-md">
-                <div className="panel-card-header">
-                  <div>
-                    <p className="eyebrow">Estado</p>
-                    <h4 className="section-title">
-                      {dailyDetail.is_closed ? 'Confirmar reapertura' : 'Confirmar cierre'}
-                    </h4>
-                  </div>
-                </div>
-
-                <p className="muted">
-                  {dailyDetail.is_closed
-                    ? 'Confirma si quieres reabrir este día.'
-                    : 'Confirma si quieres cerrar este día.'}
-                </p>
-                <div className="actions-bar">
-                  <button
-                    className="btn primary"
-                    type="button"
-                    onClick={handleConfirmClosedState}
-                    disabled={isSubmittingAction}
-                  >
-                    {dailyDetail.is_closed ? 'Confirmar reapertura' : 'Confirmar cierre'}
-                  </button>
-                  <button
-                    className="btn ghost"
-                    type="button"
-                    onClick={() => {
-                      setIsConfirmingClosedState(false)
-                      setActionError(null)
-                    }}
-                    disabled={isSubmittingAction}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {isAddingWorker ? (
-              <form className="panel-card stack gap-md" onSubmit={handleSubmitAddWorker}>
-                <div className="panel-card-header">
-                  <div>
-                    <p className="eyebrow">Participación</p>
-                    <h4 className="section-title">Añadir trabajador</h4>
-                  </div>
-                </div>
-
-                <div className="field">
-                  <label className="label" htmlFor="add-worker-select">
-                    Trabajador
-                  </label>
-                  <select
-                    id="add-worker-select"
-                    className="input"
-                    value={selectedWorkerId}
-                    onChange={(event) => setSelectedWorkerId(event.target.value)}
-                    disabled={isSubmittingAction}
-                  >
-                    {availableWorkers.map((worker) => (
-                      <option key={worker.id} value={worker.id}>
-                        {worker.display_name} ({worker.role})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="field">
-                  <label className="label" htmlFor="add-worker-hours">
-                    Horas trabajadas
-                  </label>
-                  <input
-                    id="add-worker-hours"
-                    className="input"
-                    value={draftWorkerHours}
-                    onChange={(event) => setDraftWorkerHours(event.target.value)}
-                    disabled={isSubmittingAction}
-                  />
-                </div>
-
-                {dailyDetail.is_closed ? (
-                  <div className="field">
-                    <label className="label" htmlFor="add-worker-reason">
-                      Motivo del cambio
-                    </label>
-                    <input
-                      id="add-worker-reason"
-                      className="input"
-                      value={draftWorkerReason}
-                      onChange={(event) => setDraftWorkerReason(event.target.value)}
-                      disabled={isSubmittingAction}
-                    />
-                  </div>
-                ) : null}
-
-                <div className="actions-bar">
-                  <button className="btn primary" type="submit" disabled={isSubmittingAction}>
-                    Guardar trabajador
-                  </button>
-                  <button
-                    className="btn ghost"
-                    type="button"
-                    onClick={() => {
-                      setIsAddingWorker(false)
-                      setActionError(null)
-                    }}
-                    disabled={isSubmittingAction}
-                  >
-                    Cancelar
-                  </button>
-                </div>
-              </form>
-            ) : null}
-
-            {!isEditingTotalAmount && !isConfirmingClosedState && !isAddingWorker ? (
-              <div className="note">
-                <strong>Acción activa: ninguna</strong>
-                <p className="muted">
-                  Selecciona una acción para editar el bote, cambiar el estado o añadir un
-                  trabajador.
-                </p>
-              </div>
-            ) : null}
-          </div>
-        </section>
-
-        <section className="card">
-          <div className="card-header">
-            <div>
-              <p className="eyebrow">Reparto</p>
-              <h3 className="section-title">Trabajadores del día</h3>
-              <p className="muted">Las horas y cantidades se muestran con el reparto ya calculado.</p>
-            </div>
-          </div>
-
-          {workerCount ? (
-            <div className="table-wrapper">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Trabajador</th>
-                    <th>Rol</th>
-                    <th>Horas</th>
-                    <th>Peso</th>
-                    <th>Cantidad</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dailyDetail.worker_rows.map((worker) => {
-                    const participation = getParticipationByUserId(worker.user_id)
-
-                    return (
-                      <tr key={worker.user_id}>
-                        <td>{worker.display_name}</td>
-                        <td>{worker.role}</td>
-                        <td>{worker.hours_worked} h</td>
-                        <td>{worker.weight_at_time ?? '-'}</td>
-                        <td>{worker.amount} EUR</td>
-                        <td>
-                          {participation ? (
-                            <div className="stack gap-md">
-                              <div className="actions-bar">
-                                <button
-                                  className="btn ghost"
-                                  type="button"
-                                  onClick={() => handleStartEditHours(participation)}
-                                  disabled={isSubmittingAction}
-                                >
-                                  {editingParticipationId === participation.id
-                                    ? 'Cancelar edición'
-                                    : 'Editar horas'}
-                                </button>
-                                <button
-                                  className="btn ghost"
-                                  type="button"
-                                  onClick={() => handleStartDeleteParticipation(participation.id)}
-                                  disabled={isSubmittingAction}
-                                >
-                                  {deletingParticipationId === participation.id
-                                    ? 'Cancelar eliminación'
-                                    : 'Eliminar'}
-                                </button>
-                              </div>
-
-                              {editingParticipationId === participation.id ? (
-                                <form
-                                  className="panel-card stack gap-md"
-                                  onSubmit={(event) => handleSubmitEditHours(event, participation)}
-                                >
-                                  <div className="panel-card-header">
-                                    <div>
-                                      <p className="eyebrow">Horas</p>
-                                      <h4 className="section-title">Editar participación</h4>
-                                    </div>
-                                  </div>
-
-                                  <div className="field">
-                                    <label className="label" htmlFor={`edit-hours-${participation.id}`}>
-                                      Horas de {worker.display_name}
-                                    </label>
-                                    <input
-                                      id={`edit-hours-${participation.id}`}
-                                      className="input"
-                                      value={draftEditHours}
-                                      onChange={(event) => setDraftEditHours(event.target.value)}
-                                      disabled={isSubmittingAction}
-                                    />
-                                  </div>
-
-                                  {dailyDetail.is_closed ? (
-                                    <div className="field">
-                                      <label
-                                        className="label"
-                                        htmlFor={`edit-reason-${participation.id}`}
-                                      >
-                                        Motivo del cambio
-                                      </label>
-                                      <input
-                                        id={`edit-reason-${participation.id}`}
-                                        className="input"
-                                        value={draftEditReason}
-                                        onChange={(event) => setDraftEditReason(event.target.value)}
-                                        disabled={isSubmittingAction}
-                                      />
-                                    </div>
-                                  ) : null}
-
-                                  <div className="actions-bar">
-                                    <button
-                                      className="btn primary"
-                                      type="submit"
-                                      disabled={isSubmittingAction}
-                                    >
-                                      Guardar horas
-                                    </button>
-                                  </div>
-                                </form>
-                              ) : null}
-
-                              {deletingParticipationId === participation.id ? (
-                                <div className="panel-card stack gap-md">
-                                  <div className="panel-card-header">
-                                    <div>
-                                      <p className="eyebrow">Eliminar</p>
-                                      <h4 className="section-title">Quitar participación</h4>
-                                    </div>
-                                  </div>
-
-                                  <p className="muted">
-                                    Confirma si quieres eliminar a {worker.display_name} de este día.
-                                  </p>
-
-                                  {dailyDetail.is_closed ? (
-                                    <div className="field">
-                                      <label
-                                        className="label"
-                                        htmlFor={`delete-reason-${participation.id}`}
-                                      >
-                                        Motivo del cambio
-                                      </label>
-                                      <input
-                                        id={`delete-reason-${participation.id}`}
-                                        className="input"
-                                        value={draftDeleteReason}
-                                        onChange={(event) => setDraftDeleteReason(event.target.value)}
-                                        disabled={isSubmittingAction}
-                                      />
-                                    </div>
-                                  ) : null}
-
-                                  <div className="actions-bar">
-                                    <button
-                                      className="btn primary"
-                                      type="button"
-                                      onClick={() => handleConfirmDeleteParticipation(participation)}
-                                      disabled={isSubmittingAction}
-                                    >
-                                      Confirmar eliminación
-                                    </button>
-                                  </div>
-                                </div>
-                              ) : null}
-                            </div>
-                          ) : (
-                            <span className="muted">Sin acciones</span>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="empty-state">
-              <strong>No hay trabajadores cargados para este día.</strong>
-              <p className="muted">Añade una participación para empezar a repartir el bote.</p>
-            </div>
-          )}
-        </section>
+        <DailyWorkersTable
+          workerRows={dailyDetail.worker_rows}
+          isClosed={dailyDetail.is_closed}
+          isSubmittingAction={isSubmittingAction}
+          editingParticipationId={editingParticipationId}
+          deletingParticipationId={deletingParticipationId}
+          draftEditHours={draftEditHours}
+          draftEditReason={draftEditReason}
+          draftDeleteReason={draftDeleteReason}
+          getParticipationByUserId={getParticipationByUserId}
+          onStartEditHours={handleStartEditHours}
+          onStartDeleteParticipation={handleStartDeleteParticipation}
+          onSubmitEditHours={handleSubmitEditHours}
+          onDraftEditHoursChange={setDraftEditHours}
+          onDraftEditReasonChange={setDraftEditReason}
+          onDraftDeleteReasonChange={setDraftDeleteReason}
+          onConfirmDeleteParticipation={handleConfirmDeleteParticipation}
+        />
       </section>
 
-      <section className="card">
-        <div className="card-header">
-          <div>
-            <p className="eyebrow">Auditoría</p>
-            <h3 className="section-title">Historial del día</h3>
-            <p className="muted">Cada cambio queda reflejado con usuario, fecha y motivo.</p>
-          </div>
-        </div>
-
-        {historyCount ? (
-          <div className="history-list">
-            {dailyDetail.history.map((entry) => (
-              <article className="history-item" key={entry.id}>
-                <div className="history-meta">
-                  <strong>{entry.changed_by?.username ?? 'Sistema'}</strong>
-                  <span>{new Date(entry.created_at).toLocaleString('es-ES')}</span>
-                </div>
-                <p>{entry.message}</p>
-                {entry.reason ? <p className="history-reason">Motivo: {entry.reason}</p> : null}
-                {entry.happened_after_closure ? (
-                  <span className="status-badge">Posterior al cierre</span>
-                ) : null}
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <strong>Todavía no hay eventos en el historial.</strong>
-            <p className="muted">Cuando se registren cambios, aparecerán aquí.</p>
-          </div>
-        )}
-      </section>
+      <DailyHistoryList history={dailyDetail.history} />
     </section>
   )
 }

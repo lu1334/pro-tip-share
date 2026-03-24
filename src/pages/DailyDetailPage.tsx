@@ -23,6 +23,8 @@ type LoadDailyDetailOptions = {
   preserveViewOnError?: boolean
 }
 
+type AsyncAction = () => Promise<void>
+
 export function DailyDetailPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -124,25 +126,84 @@ export function DailyDetailPage() {
       return
     }
 
-    setDraftTotalAmount(dailyDetail.total_amount)
-    setDraftTotalAmountReason('')
-    setIsEditingTotalAmount(false)
-    setIsConfirmingClosedState(false)
-    setIsAddingWorker(false)
-    setAvailableWorkers([])
-    setSelectedWorkerId('')
-    setDraftWorkerHours('0.00')
-    setDraftWorkerReason('')
-    setEditingParticipationId(null)
-    setDraftEditHours('')
-    setDraftEditReason('')
-    setDeletingParticipationId(null)
-    setDraftDeleteReason('')
-    setActionError(null)
+    resetDetailDrafts(dailyDetail)
   }, [dailyDetail])
 
   function getParticipationByUserId(userId: number) {
     return dailyDetail?.participations.find((participation) => participation.user.id === userId)
+  }
+
+  function resetActionPanels() {
+    setIsEditingTotalAmount(false)
+    setIsConfirmingClosedState(false)
+    setIsAddingWorker(false)
+    setEditingParticipationId(null)
+    setDeletingParticipationId(null)
+  }
+
+  function resetDetailDrafts(detail: DailyDetailResponse) {
+    setDraftTotalAmount(detail.total_amount)
+    setDraftTotalAmountReason('')
+    resetActionPanels()
+    setAvailableWorkers([])
+    setSelectedWorkerId('')
+    setDraftWorkerHours('0.00')
+    setDraftWorkerReason('')
+    setDraftEditHours('')
+    setDraftEditReason('')
+    setDraftDeleteReason('')
+    setActionError(null)
+  }
+
+  function clearActionErrorAndCloseTopPanels() {
+    setActionError(null)
+    setIsEditingTotalAmount(false)
+    setIsConfirmingClosedState(false)
+    setIsAddingWorker(false)
+  }
+
+  function toggleEditTotalAmountPanel() {
+    setActionError(null)
+    setIsEditingTotalAmount((current) => {
+      const nextValue = !current
+      setIsConfirmingClosedState(false)
+      setIsAddingWorker(false)
+      return nextValue
+    })
+  }
+
+  function toggleClosedStatePanel() {
+    setActionError(null)
+    setIsConfirmingClosedState((current) => {
+      const nextValue = !current
+      setIsEditingTotalAmount(false)
+      setIsAddingWorker(false)
+      return nextValue
+    })
+  }
+
+  function handleUnauthorized() {
+    logout()
+    navigate('/login', { replace: true, state: { from: location.pathname } })
+  }
+
+  async function reloadAfterAction(onSuccess?: () => void) {
+    const didReload = await loadDailyDetail({ preserveViewOnError: true })
+    if (didReload && isMountedRef.current) {
+      onSuccess?.()
+    }
+  }
+
+  async function runAction(action: AsyncAction) {
+    try {
+      setIsSubmittingAction(true)
+      setActionError(null)
+      await action()
+    } finally {
+      if (isMountedRef.current) {
+        setIsSubmittingAction(false)
+      }
+    }
   }
 
   async function handleSubmitTotalAmount(event: FormEvent<HTMLFormElement>) {
@@ -168,30 +229,24 @@ export function DailyDetailPage() {
     const changeReason = dailyDetail.is_closed ? draftTotalAmountReason.trim() : ''
 
     try {
-      setIsSubmittingAction(true)
-      setActionError(null)
-      await updateDailyTip(dailyDetail.id, {
-        total_amount: normalizedAmount,
-        change_reason: changeReason,
+      await runAction(async () => {
+        await updateDailyTip(dailyDetail.id, {
+          total_amount: normalizedAmount,
+          change_reason: changeReason,
+        })
+        await reloadAfterAction(() => {
+          setIsEditingTotalAmount(false)
+        })
       })
-      const didReload = await loadDailyDetail({ preserveViewOnError: true })
-      if (didReload && isMountedRef.current) {
-        setIsEditingTotalAmount(false)
-      }
     } catch (actionError) {
       if (actionError instanceof UnauthorizedError) {
-        logout()
-        navigate('/login', { replace: true, state: { from: location.pathname } })
+        handleUnauthorized()
         return
       }
 
       setActionError(
         actionError instanceof Error ? actionError.message : 'No se pudo actualizar el bote.',
       )
-    } finally {
-      if (isMountedRef.current) {
-        setIsSubmittingAction(false)
-      }
     }
   }
 
@@ -201,23 +256,20 @@ export function DailyDetailPage() {
     }
 
     try {
-      setIsSubmittingAction(true)
-      setActionError(null)
+      await runAction(async () => {
+        if (dailyDetail.is_closed) {
+          await reopenDailyTip(dailyDetail.id)
+        } else {
+          await closeDailyTip(dailyDetail.id)
+        }
 
-      if (dailyDetail.is_closed) {
-        await reopenDailyTip(dailyDetail.id)
-      } else {
-        await closeDailyTip(dailyDetail.id)
-      }
-
-      const didReload = await loadDailyDetail({ preserveViewOnError: true })
-      if (didReload && isMountedRef.current) {
-        setIsConfirmingClosedState(false)
-      }
+        await reloadAfterAction(() => {
+          setIsConfirmingClosedState(false)
+        })
+      })
     } catch (actionError) {
       if (actionError instanceof UnauthorizedError) {
-        logout()
-        navigate('/login', { replace: true, state: { from: location.pathname } })
+        handleUnauthorized()
         return
       }
 
@@ -226,10 +278,6 @@ export function DailyDetailPage() {
           ? actionError.message
           : 'No se pudo actualizar el estado del día.',
       )
-    } finally {
-      if (isMountedRef.current) {
-        setIsSubmittingAction(false)
-      }
     }
   }
 
@@ -239,29 +287,26 @@ export function DailyDetailPage() {
     }
 
     try {
-      setIsSubmittingAction(true)
-      setActionError(null)
+      await runAction(async () => {
+        const availableWorkers = await fetchAvailableWorkers(dailyDetail.id)
 
-      const availableWorkers = await fetchAvailableWorkers(dailyDetail.id)
+        if (!availableWorkers.length) {
+          setActionError('No hay trabajadores disponibles para añadir a este día.')
+          return
+        }
 
-      if (!availableWorkers.length) {
-        setActionError('No hay trabajadores disponibles para añadir a este día.')
-        return
-      }
-
-      if (isMountedRef.current) {
-        setAvailableWorkers(availableWorkers)
-        setSelectedWorkerId(String(availableWorkers[0]?.id ?? ''))
-        setDraftWorkerHours('0.00')
-        setDraftWorkerReason('')
-        setIsAddingWorker(true)
-        setIsEditingTotalAmount(false)
-        setIsConfirmingClosedState(false)
-      }
+        if (isMountedRef.current) {
+          setAvailableWorkers(availableWorkers)
+          setSelectedWorkerId(String(availableWorkers[0]?.id ?? ''))
+          setDraftWorkerHours('0.00')
+          setDraftWorkerReason('')
+          clearActionErrorAndCloseTopPanels()
+          setIsAddingWorker(true)
+        }
+      })
     } catch (actionError) {
       if (actionError instanceof UnauthorizedError) {
-        logout()
-        navigate('/login', { replace: true, state: { from: location.pathname } })
+        handleUnauthorized()
         return
       }
 
@@ -270,10 +315,6 @@ export function DailyDetailPage() {
           ? actionError.message
           : 'No se pudo añadir el trabajador al día.',
       )
-    } finally {
-      if (isMountedRef.current) {
-        setIsSubmittingAction(false)
-      }
     }
   }
 
@@ -298,22 +339,20 @@ export function DailyDetailPage() {
     }
 
     try {
-      setIsSubmittingAction(true)
-      setActionError(null)
-      await createDailyParticipation({
-        daily_tip: dailyDetail.id,
-        user_id: selectedWorker.id,
-        hours_worked: parsedHours.toFixed(2),
-        change_reason: dailyDetail.is_closed ? draftWorkerReason.trim() : '',
+      await runAction(async () => {
+        await createDailyParticipation({
+          daily_tip: dailyDetail.id,
+          user_id: selectedWorker.id,
+          hours_worked: parsedHours.toFixed(2),
+          change_reason: dailyDetail.is_closed ? draftWorkerReason.trim() : '',
+        })
+        await reloadAfterAction(() => {
+          setIsAddingWorker(false)
+        })
       })
-      const didReload = await loadDailyDetail({ preserveViewOnError: true })
-      if (didReload && isMountedRef.current) {
-        setIsAddingWorker(false)
-      }
     } catch (actionError) {
       if (actionError instanceof UnauthorizedError) {
-        logout()
-        navigate('/login', { replace: true, state: { from: location.pathname } })
+        handleUnauthorized()
         return
       }
 
@@ -322,10 +361,6 @@ export function DailyDetailPage() {
           ? actionError.message
           : 'No se pudo añadir el trabajador al día.',
       )
-    } finally {
-      if (isMountedRef.current) {
-        setIsSubmittingAction(false)
-      }
     }
   }
 
@@ -339,6 +374,9 @@ export function DailyDetailPage() {
 
     setActionError(null)
     setDeletingParticipationId(null)
+    setIsEditingTotalAmount(false)
+    setIsConfirmingClosedState(false)
+    setIsAddingWorker(false)
     setEditingParticipationId(participation.id)
     setDraftEditHours(participation.hours_worked)
     setDraftEditReason('')
@@ -357,30 +395,24 @@ export function DailyDetailPage() {
     }
 
     try {
-      setIsSubmittingAction(true)
-      setActionError(null)
-      await updateDailyParticipation(participation.id, {
-        hours_worked: parsedHours.toFixed(2),
-        change_reason: dailyDetail?.is_closed ? draftEditReason.trim() : '',
+      await runAction(async () => {
+        await updateDailyParticipation(participation.id, {
+          hours_worked: parsedHours.toFixed(2),
+          change_reason: dailyDetail?.is_closed ? draftEditReason.trim() : '',
+        })
+        await reloadAfterAction(() => {
+          setEditingParticipationId(null)
+        })
       })
-      const didReload = await loadDailyDetail({ preserveViewOnError: true })
-      if (didReload && isMountedRef.current) {
-        setEditingParticipationId(null)
-      }
     } catch (actionError) {
       if (actionError instanceof UnauthorizedError) {
-        logout()
-        navigate('/login', { replace: true, state: { from: location.pathname } })
+        handleUnauthorized()
         return
       }
 
       setActionError(
         actionError instanceof Error ? actionError.message : 'No se pudieron actualizar las horas.',
       )
-    } finally {
-      if (isMountedRef.current) {
-        setIsSubmittingAction(false)
-      }
     }
   }
 
@@ -393,26 +425,27 @@ export function DailyDetailPage() {
 
     setActionError(null)
     setEditingParticipationId(null)
+    setIsEditingTotalAmount(false)
+    setIsConfirmingClosedState(false)
+    setIsAddingWorker(false)
     setDeletingParticipationId(participationId)
     setDraftDeleteReason('')
   }
 
   async function handleConfirmDeleteParticipation(participation: DailyParticipation) {
     try {
-      setIsSubmittingAction(true)
-      setActionError(null)
-      await deleteDailyParticipation(
-        participation.id,
-        dailyDetail?.is_closed ? draftDeleteReason.trim() : '',
-      )
-      const didReload = await loadDailyDetail({ preserveViewOnError: true })
-      if (didReload && isMountedRef.current) {
-        setDeletingParticipationId(null)
-      }
+      await runAction(async () => {
+        await deleteDailyParticipation(
+          participation.id,
+          dailyDetail?.is_closed ? draftDeleteReason.trim() : '',
+        )
+        await reloadAfterAction(() => {
+          setDeletingParticipationId(null)
+        })
+      })
     } catch (actionError) {
       if (actionError instanceof UnauthorizedError) {
-        logout()
-        navigate('/login', { replace: true, state: { from: location.pathname } })
+        handleUnauthorized()
         return
       }
 
@@ -421,10 +454,6 @@ export function DailyDetailPage() {
           ? actionError.message
           : 'No se pudo eliminar la participación.',
       )
-    } finally {
-      if (isMountedRef.current) {
-        setIsSubmittingAction(false)
-      }
     }
   }
 
@@ -499,18 +528,8 @@ export function DailyDetailPage() {
           draftWorkerHours={draftWorkerHours}
           draftWorkerReason={draftWorkerReason}
           onOpenAddWorkerForm={handleOpenAddWorkerForm}
-          onToggleEditTotalAmount={() => {
-            setActionError(null)
-            setIsEditingTotalAmount((current) => !current)
-            setIsConfirmingClosedState(false)
-            setIsAddingWorker(false)
-          }}
-          onToggleClosedState={() => {
-            setActionError(null)
-            setIsConfirmingClosedState((current) => !current)
-            setIsEditingTotalAmount(false)
-            setIsAddingWorker(false)
-          }}
+          onToggleEditTotalAmount={toggleEditTotalAmountPanel}
+          onToggleClosedState={toggleClosedStatePanel}
           onSubmitTotalAmount={handleSubmitTotalAmount}
           onDraftTotalAmountChange={setDraftTotalAmount}
           onDraftTotalAmountReasonChange={setDraftTotalAmountReason}

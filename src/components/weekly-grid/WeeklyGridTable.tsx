@@ -6,6 +6,8 @@ type WeeklyGridTableProps = {
 }
 
 export function WeeklyGridTable({ weeklyGrid }: WeeklyGridTableProps) {
+  const hasTableData = weeklyGrid.days.length > 0 && weeklyGrid.workers.length > 0
+
   return (
     <section className="card">
       <div className="card-header">
@@ -19,7 +21,7 @@ export function WeeklyGridTable({ weeklyGrid }: WeeklyGridTableProps) {
         </div>
       </div>
 
-      {weeklyGrid.days.length && weeklyGrid.workers.length ? (
+      {hasTableData ? (
         <div className="table-wrapper">
           <table className="table weekly-table">
             <thead>

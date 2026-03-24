@@ -73,6 +73,29 @@ const weeklyGridFixture: WeeklyGridResponse = {
   ],
 }
 
+const partialWeeklyGridFixture: WeeklyGridResponse = {
+  ...weeklyGridFixture,
+  days: [
+    weeklyGridFixture.days[0],
+    {
+      daily_tip_id: null,
+      date: '2026-03-17',
+      total_amount: '0.00',
+      distribution_method: 'weight_hours',
+      is_closed: false,
+      distributed_total: '0.00',
+    },
+  ],
+  workers: [
+    {
+      ...weeklyGridFixture.workers[0],
+      days: {
+        ...weeklyGridFixture.workers[0].days,
+      },
+    },
+  ],
+}
+
 const emptyWeeklyGridFixture: WeeklyGridResponse = {
   ...weeklyGridFixture,
   days: [],
@@ -154,5 +177,21 @@ describe('WeeklyGridPage', () => {
     expect(
       screen.getByText('La tabla aparecerá cuando existan días y trabajadores en la respuesta semanal.'),
     ).toBeInTheDocument()
+  })
+
+  it('mantiene sin enlace los días sin detalle y pinta celdas vacías', async () => {
+    fetchWeeklyGridMock.mockResolvedValue(partialWeeklyGridFixture)
+
+    render(<WeeklyGridPage />)
+
+    expect(await screen.findByText('Ana Lopez')).toBeInTheDocument()
+
+    const linkedDay = screen.getByRole('link', { name: /2026-03-16 120.00 EUR Cerrado/i })
+    expect(linkedDay).toHaveAttribute('href', '/daily/12')
+
+    expect(screen.queryByRole('link', { name: /2026-03-17 0.00 EUR Abierto/i })).not.toBeInTheDocument()
+    expect(screen.getByText('2026-03-17')).toBeInTheDocument()
+    expect(screen.getAllByText('0.00 EUR')).not.toHaveLength(0)
+    expect(screen.getByText('0.00 h')).toBeInTheDocument()
   })
 })

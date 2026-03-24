@@ -202,7 +202,7 @@ describe('DailyDetailPage', () => {
     expect(screen.getByText('2026-03-17')).toBeInTheDocument()
     expect(screen.getByText('100.00 EUR')).toBeInTheDocument()
     expect(screen.getByText('hours')).toBeInTheDocument()
-    expect(screen.getByText('Abierto')).toBeInTheDocument()
+    expect(screen.getAllByText('Abierto')).not.toHaveLength(0)
     expect(screen.getByText('8.00 h')).toBeInTheDocument()
     expect(screen.getByText('75.00 EUR')).toBeInTheDocument()
     expect(screen.getByText('Se creó el bote diario con un total de 100.00 EUR.')).toBeInTheDocument()
@@ -237,6 +237,24 @@ describe('DailyDetailPage', () => {
     expect(await screen.findByText('120.50 EUR')).toBeInTheDocument()
   })
 
+  it('mantiene el detalle visible si falla una acción', async () => {
+    const user = userEvent.setup()
+    fetchDailyDetailMock.mockResolvedValue(dailyDetailFixture)
+    updateDailyTipMock.mockRejectedValue(new Error('No se pudo actualizar el bote'))
+
+    render(<DailyDetailPage />)
+
+    await screen.findByText('Ana Lopez')
+    await user.click(screen.getByRole('button', { name: 'Editar bote' }))
+    await user.clear(screen.getByLabelText('Nuevo bote total'))
+    await user.type(screen.getByLabelText('Nuevo bote total'), '120.50')
+    await user.click(screen.getByRole('button', { name: 'Guardar bote' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo actualizar el bote')
+    expect(screen.getByText('Ana Lopez')).toBeInTheDocument()
+    expect(screen.getByText('100.00 EUR')).toBeInTheDocument()
+  })
+
   it('cierra el día y recarga el detalle', async () => {
     const user = userEvent.setup()
     fetchDailyDetailMock
@@ -256,7 +274,7 @@ describe('DailyDetailPage', () => {
 
     expect(fetchDailyDetailMock).toHaveBeenCalledTimes(2)
     expect(await screen.findByText('Reabrir día')).toBeInTheDocument()
-    expect(screen.getByText('Cerrado')).toBeInTheDocument()
+    expect(screen.getAllByText('Cerrado')).not.toHaveLength(0)
   })
 
   it('reabre el día y recarga el detalle', async () => {
@@ -278,7 +296,7 @@ describe('DailyDetailPage', () => {
 
     expect(fetchDailyDetailMock).toHaveBeenCalledTimes(2)
     expect(await screen.findByText('Cerrar día')).toBeInTheDocument()
-    expect(screen.getByText('Abierto')).toBeInTheDocument()
+    expect(screen.getAllByText('Abierto')).not.toHaveLength(0)
   })
 
   it('añade un trabajador y recarga el detalle', async () => {

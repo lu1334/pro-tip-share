@@ -107,6 +107,14 @@
   gap: 18px;
 }
 
+.detail-header-side {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
 .card {
   background: rgba(255, 252, 246, 0.82);
   border: 1px solid rgba(19, 33, 34, 0.08);
@@ -278,10 +286,88 @@
   gap: 18px;
 }
 
+.detail-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.detail-main-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr);
+}
+
+.detail-side-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.panel-card {
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(19, 33, 34, 0.08);
+  background: rgba(255, 253, 248, 0.92);
+}
+
+.panel-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .actions-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.alert-banner {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(161, 67, 29, 0.18);
+  background: #fff2ea;
+  color: #7f341b;
+}
+
+.alert-banner p {
+  margin: 6px 0 0;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.status-chip--open {
+  background: #e3f1df;
+  color: #24593a;
+}
+
+.status-chip--closed {
+  background: #f5e6c3;
+  color: #6d4e0f;
+}
+
+.empty-state {
+  padding: 20px;
+  border-radius: 18px;
+  background: #fffdf8;
+  border: 1px dashed rgba(19, 33, 34, 0.14);
+}
+
+.empty-state p {
+  margin-top: 8px;
 }
 
 .history-list {
@@ -342,6 +428,10 @@ code {
   .content {
     padding: 20px;
   }
+
+  .detail-main-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -352,6 +442,13 @@ code {
 
   .page-header-block {
     flex-direction: column;
+  }
+
+  .detail-header-side,
+  .detail-hero-top {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .table {

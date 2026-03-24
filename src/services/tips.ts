@@ -1,23 +1,11 @@
 import { getApiBaseUrl } from './api'
-import { clearAuthTokens, getAccessToken, UnauthorizedError } from './auth'
+import { fetchWithAuth } from './auth'
 import type {
   AvailableWorker,
   DailyDetailResponse,
   DailyParticipation,
   WeeklyGridResponse,
 } from '../types/api'
-
-function getAuthorizedHeaders() {
-  const accessToken = getAccessToken()
-
-  if (!accessToken) {
-    throw new Error('No hay sesión activa.')
-  }
-
-  return {
-    Authorization: `Bearer ${accessToken}`,
-  }
-}
 
 async function parseResponseData<T>(response: Response) {
   let data: T | { detail?: string }
@@ -27,19 +15,14 @@ async function parseResponseData<T>(response: Response) {
     data = {}
   }
 
-  if (response.status === 401) {
-    clearAuthTokens()
-    throw new UnauthorizedError()
-  }
-
   return data
 }
 
 export async function fetchWeeklyGrid(startDate?: string) {
   const query = startDate ? `?start_date=${encodeURIComponent(startDate)}` : ''
-  const response = await fetch(`${getApiBaseUrl()}/tips/api/daily-tips/weekly-grid/${query}`, {
-    headers: getAuthorizedHeaders(),
-  })
+  const response = await fetchWithAuth(
+    `${getApiBaseUrl()}/tips/api/daily-tips/weekly-grid/${query}`,
+  )
 
   const data = await parseResponseData<WeeklyGridResponse>(response)
 
@@ -55,9 +38,9 @@ export async function fetchWeeklyGrid(startDate?: string) {
 }
 
 export async function fetchDailyDetail(dailyTipId: number) {
-  const response = await fetch(`${getApiBaseUrl()}/tips/api/daily-tips/${dailyTipId}/detail/`, {
-    headers: getAuthorizedHeaders(),
-  })
+  const response = await fetchWithAuth(
+    `${getApiBaseUrl()}/tips/api/daily-tips/${dailyTipId}/detail/`,
+  )
 
   const data = await parseResponseData<DailyDetailResponse>(response)
 
@@ -76,10 +59,9 @@ export async function updateDailyTip(
   dailyTipId: number,
   payload: { total_amount: string; change_reason?: string },
 ) {
-  const response = await fetch(`${getApiBaseUrl()}/tips/api/daily-tips/${dailyTipId}/`, {
+  const response = await fetchWithAuth(`${getApiBaseUrl()}/tips/api/daily-tips/${dailyTipId}/`, {
     method: 'PATCH',
     headers: {
-      ...getAuthorizedHeaders(),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
@@ -99,10 +81,12 @@ export async function updateDailyTip(
 }
 
 export async function closeDailyTip(dailyTipId: number) {
-  const response = await fetch(`${getApiBaseUrl()}/tips/api/daily-tips/${dailyTipId}/close/`, {
-    method: 'POST',
-    headers: getAuthorizedHeaders(),
-  })
+  const response = await fetchWithAuth(
+    `${getApiBaseUrl()}/tips/api/daily-tips/${dailyTipId}/close/`,
+    {
+      method: 'POST',
+    },
+  )
 
   const data = await parseResponseData<DailyDetailResponse>(response)
 
@@ -118,10 +102,12 @@ export async function closeDailyTip(dailyTipId: number) {
 }
 
 export async function reopenDailyTip(dailyTipId: number) {
-  const response = await fetch(`${getApiBaseUrl()}/tips/api/daily-tips/${dailyTipId}/reopen/`, {
-    method: 'POST',
-    headers: getAuthorizedHeaders(),
-  })
+  const response = await fetchWithAuth(
+    `${getApiBaseUrl()}/tips/api/daily-tips/${dailyTipId}/reopen/`,
+    {
+      method: 'POST',
+    },
+  )
 
   const data = await parseResponseData<DailyDetailResponse>(response)
 
@@ -137,11 +123,8 @@ export async function reopenDailyTip(dailyTipId: number) {
 }
 
 export async function fetchAvailableWorkers(dailyTipId: number) {
-  const response = await fetch(
+  const response = await fetchWithAuth(
     `${getApiBaseUrl()}/tips/api/daily-tips/${dailyTipId}/available-workers/`,
-    {
-      headers: getAuthorizedHeaders(),
-    },
   )
 
   const data = await parseResponseData<AvailableWorker[]>(response)
@@ -163,10 +146,9 @@ export async function createDailyParticipation(payload: {
   hours_worked: string
   change_reason?: string
 }) {
-  const response = await fetch(`${getApiBaseUrl()}/tips/api/daily-participations/`, {
+  const response = await fetchWithAuth(`${getApiBaseUrl()}/tips/api/daily-participations/`, {
     method: 'POST',
     headers: {
-      ...getAuthorizedHeaders(),
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(payload),
@@ -189,12 +171,11 @@ export async function updateDailyParticipation(
   participationId: number,
   payload: { hours_worked: string; change_reason?: string },
 ) {
-  const response = await fetch(
+  const response = await fetchWithAuth(
     `${getApiBaseUrl()}/tips/api/daily-participations/${participationId}/`,
     {
       method: 'PATCH',
       headers: {
-        ...getAuthorizedHeaders(),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
@@ -216,18 +197,12 @@ export async function updateDailyParticipation(
 
 export async function deleteDailyParticipation(participationId: number, changeReason?: string) {
   const query = changeReason ? `?change_reason=${encodeURIComponent(changeReason)}` : ''
-  const response = await fetch(
+  const response = await fetchWithAuth(
     `${getApiBaseUrl()}/tips/api/daily-participations/${participationId}/${query}`,
     {
       method: 'DELETE',
-      headers: getAuthorizedHeaders(),
     },
   )
-
-  if (response.status === 401) {
-    clearAuthTokens()
-    throw new UnauthorizedError()
-  }
 
   if (!response.ok) {
     let data: { detail?: string }

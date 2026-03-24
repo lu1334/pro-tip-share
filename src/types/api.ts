@@ -16,6 +16,11 @@ export interface LoginResponse {
   user: ApiUser
 }
 
+export interface RefreshTokenResponse {
+  access: string
+  refresh?: string
+}
+
 export interface BusinessSettingsSummary {
   default_distribution_method: DistributionMethod
 }

@@ -73,6 +73,12 @@ const weeklyGridFixture: WeeklyGridResponse = {
   ],
 }
 
+const emptyWeeklyGridFixture: WeeklyGridResponse = {
+  ...weeklyGridFixture,
+  days: [],
+  workers: [],
+}
+
 describe('WeeklyGridPage', () => {
   beforeEach(() => {
     navigateMock.mockReset()
@@ -130,7 +136,23 @@ describe('WeeklyGridPage', () => {
     expect(await screen.findByText('Ana Lopez')).toBeInTheDocument()
     expect(screen.getByText('weight_hours')).toBeInTheDocument()
     expect(screen.getByText('2026-03-16 - 2026-03-22')).toBeInTheDocument()
+    expect(screen.getByText('Días con detalle')).toBeInTheDocument()
+    expect(screen.getByText('Días cerrados')).toBeInTheDocument()
+    expect(screen.getByText('Trabajadores')).toBeInTheDocument()
     expect(screen.getAllByText('68.00 EUR')).toHaveLength(2)
     expect(screen.getByText('8.00 h')).toBeInTheDocument()
+  })
+
+  it('muestra estado vacío cuando faltan días y trabajadores', async () => {
+    fetchWeeklyGridMock.mockResolvedValue(emptyWeeklyGridFixture)
+
+    render(<WeeklyGridPage />)
+
+    expect(
+      await screen.findByText('No hay datos suficientes para construir la tabla semanal.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('La tabla aparecerá cuando existan días y trabajadores en la respuesta semanal.'),
+    ).toBeInTheDocument()
   })
 })

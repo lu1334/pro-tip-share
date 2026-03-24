@@ -280,6 +280,22 @@
   opacity: 0.75;
 }
 
+.weekly-overview {
+  position: relative;
+  overflow: hidden;
+}
+
+.weekly-overview::after {
+  content: "";
+  position: absolute;
+  inset: auto -60px -80px auto;
+  width: 200px;
+  height: 200px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(144, 112, 50, 0.14), transparent 68%);
+  pointer-events: none;
+}
+
 .detail-hero {
   display: flex;
   flex-direction: column;

@@ -28,6 +28,16 @@ export function DailyDetailPage() {
   const [draftTotalAmount, setDraftTotalAmount] = useState('')
   const [draftTotalAmountReason, setDraftTotalAmountReason] = useState('')
   const [isConfirmingClosedState, setIsConfirmingClosedState] = useState(false)
+  const [isAddingWorker, setIsAddingWorker] = useState(false)
+  const [availableWorkers, setAvailableWorkers] = useState<AvailableWorker[]>([])
+  const [selectedWorkerId, setSelectedWorkerId] = useState('')
+  const [draftWorkerHours, setDraftWorkerHours] = useState('0.00')
+  const [draftWorkerReason, setDraftWorkerReason] = useState('')
+  const [editingParticipationId, setEditingParticipationId] = useState<number | null>(null)
+  const [draftEditHours, setDraftEditHours] = useState('')
+  const [draftEditReason, setDraftEditReason] = useState('')
+  const [deletingParticipationId, setDeletingParticipationId] = useState<number | null>(null)
+  const [draftDeleteReason, setDraftDeleteReason] = useState('')
   const isMountedRef = useRef(true)
 
   useEffect(() => {
@@ -99,6 +109,16 @@ export function DailyDetailPage() {
     setDraftTotalAmountReason('')
     setIsEditingTotalAmount(false)
     setIsConfirmingClosedState(false)
+    setIsAddingWorker(false)
+    setAvailableWorkers([])
+    setSelectedWorkerId('')
+    setDraftWorkerHours('0.00')
+    setDraftWorkerReason('')
+    setEditingParticipationId(null)
+    setDraftEditHours('')
+    setDraftEditReason('')
+    setDeletingParticipationId(null)
+    setDraftDeleteReason('')
   }, [dailyDetail])
 
   async function handleSubmitTotalAmount(event: FormEvent<HTMLFormElement>) {
@@ -193,15 +213,7 @@ export function DailyDetailPage() {
     return dailyDetail?.participations.find((participation) => participation.user.id === userId)
   }
 
-  function requestChangeReasonIfClosed() {
-    if (!dailyDetail?.is_closed) {
-      return ''
-    }
-
-    return (window.prompt('Motivo del cambio (opcional)') ?? '').trim()
-  }
-
-  async function handleAddWorker() {
+  async function handleOpenAddWorkerForm() {
     if (!dailyDetail) {
       return
     }
@@ -218,52 +230,13 @@ export function DailyDetailPage() {
         return
       }
 
-      const workersMessage = availableWorkers
-        .map(
-          (worker: AvailableWorker) =>
-            `${worker.id} - ${worker.display_name} (${worker.role})`,
-        )
-        .join('\n')
-
-      const workerIdInput = window.prompt(
-        `Trabajadores disponibles:\n${workersMessage}\n\nEscribe el ID del trabajador a añadir`,
-      )
-
-      if (workerIdInput === null) {
-        return
+      if (isMountedRef.current) {
+        setAvailableWorkers(availableWorkers)
+        setSelectedWorkerId(String(availableWorkers[0]?.id ?? ''))
+        setDraftWorkerHours('0.00')
+        setDraftWorkerReason('')
+        setIsAddingWorker(true)
       }
-
-      const selectedWorkerId = Number(workerIdInput.trim())
-      const selectedWorker = availableWorkers.find((worker) => worker.id === selectedWorkerId)
-
-      if (!selectedWorker) {
-        setError('Debes elegir un trabajador válido de la lista.')
-        return
-      }
-
-      const hoursInput = window.prompt(
-        `Horas trabajadas por ${selectedWorker.display_name}`,
-        '0.00',
-      )
-
-      if (hoursInput === null) {
-        return
-      }
-
-      const parsedHours = Number(hoursInput.trim().replace(',', '.'))
-      if (Number.isNaN(parsedHours) || parsedHours < 0) {
-        setError('Las horas deben ser un número válido igual o mayor que 0.')
-        return
-      }
-
-      await createDailyParticipation({
-        daily_tip: dailyDetail.id,
-        user_id: selectedWorker.id,
-        hours_worked: parsedHours.toFixed(2),
-        change_reason: requestChangeReasonIfClosed(),
-      })
-
-      await loadDailyDetail()
     } catch (actionError) {
       if (actionError instanceof UnauthorizedError) {
         logout()
@@ -283,17 +256,80 @@ export function DailyDetailPage() {
     }
   }
 
-  async function handleEditHours(workerName: string, participation: DailyParticipation) {
-    const nextHours = window.prompt(
-      `Nuevas horas para ${workerName}`,
-      participation.hours_worked,
-    )
+  async function handleSubmitAddWorker(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
 
-    if (nextHours === null) {
+    if (!dailyDetail) {
       return
     }
 
-    const parsedHours = Number(nextHours.trim().replace(',', '.'))
+    const parsedSelectedWorkerId = Number(selectedWorkerId)
+    const selectedWorker = availableWorkers.find((worker) => worker.id === parsedSelectedWorkerId)
+    if (!selectedWorker) {
+      setError('Debes elegir un trabajador válido de la lista.')
+      return
+    }
+
+    const parsedHours = Number(draftWorkerHours.trim().replace(',', '.'))
+    if (Number.isNaN(parsedHours) || parsedHours < 0) {
+      setError('Las horas deben ser un número válido igual o mayor que 0.')
+      return
+    }
+
+    try {
+      setIsSubmittingAction(true)
+      setError(null)
+      await createDailyParticipation({
+        daily_tip: dailyDetail.id,
+        user_id: selectedWorker.id,
+        hours_worked: parsedHours.toFixed(2),
+        change_reason: dailyDetail.is_closed ? draftWorkerReason.trim() : '',
+      })
+      const didReload = await loadDailyDetail()
+      if (didReload && isMountedRef.current) {
+        setIsAddingWorker(false)
+      }
+    } catch (actionError) {
+      if (actionError instanceof UnauthorizedError) {
+        logout()
+        navigate('/login', { replace: true, state: { from: location.pathname } })
+        return
+      }
+
+      setError(
+        actionError instanceof Error
+          ? actionError.message
+          : 'No se pudo añadir el trabajador al día.',
+      )
+    } finally {
+      if (isMountedRef.current) {
+        setIsSubmittingAction(false)
+      }
+    }
+  }
+
+  function handleStartEditHours(participation: DailyParticipation) {
+    if (editingParticipationId === participation.id) {
+      setEditingParticipationId(null)
+      setDraftEditHours('')
+      setDraftEditReason('')
+      return
+    }
+
+    setError(null)
+    setDeletingParticipationId(null)
+    setEditingParticipationId(participation.id)
+    setDraftEditHours(participation.hours_worked)
+    setDraftEditReason('')
+  }
+
+  async function handleSubmitEditHours(
+    event: FormEvent<HTMLFormElement>,
+    participation: DailyParticipation,
+  ) {
+    event.preventDefault()
+
+    const parsedHours = Number(draftEditHours.trim().replace(',', '.'))
     if (Number.isNaN(parsedHours) || parsedHours < 0) {
       setError('Las horas deben ser un número válido igual o mayor que 0.')
       return
@@ -304,9 +340,12 @@ export function DailyDetailPage() {
       setError(null)
       await updateDailyParticipation(participation.id, {
         hours_worked: parsedHours.toFixed(2),
-        change_reason: requestChangeReasonIfClosed(),
+        change_reason: dailyDetail?.is_closed ? draftEditReason.trim() : '',
       })
-      await loadDailyDetail()
+      const didReload = await loadDailyDetail()
+      if (didReload && isMountedRef.current) {
+        setEditingParticipationId(null)
+      }
     } catch (actionError) {
       if (actionError instanceof UnauthorizedError) {
         logout()
@@ -326,18 +365,31 @@ export function DailyDetailPage() {
     }
   }
 
-  async function handleDeleteParticipation(workerName: string, participation: DailyParticipation) {
-    const shouldProceed = window.confirm(`¿Quieres eliminar a ${workerName} de este día?`)
-
-    if (!shouldProceed) {
+  function handleStartDeleteParticipation(participationId: number) {
+    if (deletingParticipationId === participationId) {
+      setDeletingParticipationId(null)
+      setDraftDeleteReason('')
       return
     }
 
+    setError(null)
+    setEditingParticipationId(null)
+    setDeletingParticipationId(participationId)
+    setDraftDeleteReason('')
+  }
+
+  async function handleConfirmDeleteParticipation(participation: DailyParticipation) {
     try {
       setIsSubmittingAction(true)
       setError(null)
-      await deleteDailyParticipation(participation.id, requestChangeReasonIfClosed())
-      await loadDailyDetail()
+      await deleteDailyParticipation(
+        participation.id,
+        dailyDetail?.is_closed ? draftDeleteReason.trim() : '',
+      )
+      const didReload = await loadDailyDetail()
+      if (didReload && isMountedRef.current) {
+        setDeletingParticipationId(null)
+      }
     } catch (actionError) {
       if (actionError instanceof UnauthorizedError) {
         logout()
@@ -444,10 +496,10 @@ export function DailyDetailPage() {
           <button
             className="btn primary"
             type="button"
-            onClick={handleAddWorker}
+            onClick={handleOpenAddWorkerForm}
             disabled={isSubmittingAction}
           >
-            Añadir trabajador
+            {isAddingWorker ? 'Recargar trabajadores' : 'Añadir trabajador'}
           </button>
           <button
             className="btn ghost"
@@ -557,6 +609,74 @@ export function DailyDetailPage() {
             </div>
           </div>
         ) : null}
+
+        {isAddingWorker ? (
+          <form className="stack gap-md" onSubmit={handleSubmitAddWorker}>
+            <div className="field">
+              <label className="label" htmlFor="add-worker-select">
+                Trabajador
+              </label>
+              <select
+                id="add-worker-select"
+                className="input"
+                value={selectedWorkerId}
+                onChange={(event) => setSelectedWorkerId(event.target.value)}
+                disabled={isSubmittingAction}
+              >
+                {availableWorkers.map((worker) => (
+                  <option key={worker.id} value={worker.id}>
+                    {worker.display_name} ({worker.role})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field">
+              <label className="label" htmlFor="add-worker-hours">
+                Horas trabajadas
+              </label>
+              <input
+                id="add-worker-hours"
+                className="input"
+                value={draftWorkerHours}
+                onChange={(event) => setDraftWorkerHours(event.target.value)}
+                disabled={isSubmittingAction}
+              />
+            </div>
+
+            {dailyDetail.is_closed ? (
+              <div className="field">
+                <label className="label" htmlFor="add-worker-reason">
+                  Motivo del cambio
+                </label>
+                <input
+                  id="add-worker-reason"
+                  className="input"
+                  value={draftWorkerReason}
+                  onChange={(event) => setDraftWorkerReason(event.target.value)}
+                  disabled={isSubmittingAction}
+                />
+              </div>
+            ) : null}
+
+            <div className="actions-bar">
+              <button className="btn primary" type="submit" disabled={isSubmittingAction}>
+                Guardar trabajador
+              </button>
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={() => {
+                  setIsAddingWorker(false)
+                  setError(null)
+                }}
+                disabled={isSubmittingAction}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        ) : null}
       </section>
 
       <section className="card">
@@ -592,25 +712,117 @@ export function DailyDetailPage() {
                     <td>{worker.amount} EUR</td>
                     <td>
                       {participation ? (
-                        <div className="actions-bar">
-                          <button
-                            className="btn ghost"
-                            type="button"
-                            onClick={() => handleEditHours(worker.display_name, participation)}
-                            disabled={isSubmittingAction}
-                          >
-                            Editar horas
-                          </button>
-                          <button
-                            className="btn ghost"
-                            type="button"
-                            onClick={() =>
-                              handleDeleteParticipation(worker.display_name, participation)
-                            }
-                            disabled={isSubmittingAction}
-                          >
-                            Eliminar
-                          </button>
+                        <div className="stack gap-md">
+                          <div className="actions-bar">
+                            <button
+                              className="btn ghost"
+                              type="button"
+                              onClick={() => handleStartEditHours(participation)}
+                              disabled={isSubmittingAction}
+                            >
+                              {editingParticipationId === participation.id
+                                ? 'Cancelar edición'
+                                : 'Editar horas'}
+                            </button>
+                            <button
+                              className="btn ghost"
+                              type="button"
+                              onClick={() => handleStartDeleteParticipation(participation.id)}
+                              disabled={isSubmittingAction}
+                            >
+                              {deletingParticipationId === participation.id
+                                ? 'Cancelar eliminación'
+                                : 'Eliminar'}
+                            </button>
+                          </div>
+
+                          {editingParticipationId === participation.id ? (
+                            <form
+                              className="stack gap-md"
+                              onSubmit={(event) => handleSubmitEditHours(event, participation)}
+                            >
+                              <div className="field">
+                                <label
+                                  className="label"
+                                  htmlFor={`edit-hours-${participation.id}`}
+                                >
+                                  Horas de {worker.display_name}
+                                </label>
+                                <input
+                                  id={`edit-hours-${participation.id}`}
+                                  className="input"
+                                  value={draftEditHours}
+                                  onChange={(event) => setDraftEditHours(event.target.value)}
+                                  disabled={isSubmittingAction}
+                                />
+                              </div>
+
+                              {dailyDetail.is_closed ? (
+                                <div className="field">
+                                  <label
+                                    className="label"
+                                    htmlFor={`edit-reason-${participation.id}`}
+                                  >
+                                    Motivo del cambio
+                                  </label>
+                                  <input
+                                    id={`edit-reason-${participation.id}`}
+                                    className="input"
+                                    value={draftEditReason}
+                                    onChange={(event) => setDraftEditReason(event.target.value)}
+                                    disabled={isSubmittingAction}
+                                  />
+                                </div>
+                              ) : null}
+
+                              <div className="actions-bar">
+                                <button
+                                  className="btn primary"
+                                  type="submit"
+                                  disabled={isSubmittingAction}
+                                >
+                                  Guardar horas
+                                </button>
+                              </div>
+                            </form>
+                          ) : null}
+
+                          {deletingParticipationId === participation.id ? (
+                            <div className="stack gap-md">
+                              <p className="muted">
+                                Confirma si quieres eliminar a {worker.display_name} de este día.
+                              </p>
+
+                              {dailyDetail.is_closed ? (
+                                <div className="field">
+                                  <label
+                                    className="label"
+                                    htmlFor={`delete-reason-${participation.id}`}
+                                  >
+                                    Motivo del cambio
+                                  </label>
+                                  <input
+                                    id={`delete-reason-${participation.id}`}
+                                    className="input"
+                                    value={draftDeleteReason}
+                                    onChange={(event) => setDraftDeleteReason(event.target.value)}
+                                    disabled={isSubmittingAction}
+                                  />
+                                </div>
+                              ) : null}
+
+                              <div className="actions-bar">
+                                <button
+                                  className="btn primary"
+                                  type="button"
+                                  onClick={() => handleConfirmDeleteParticipation(participation)}
+                                  disabled={isSubmittingAction}
+                                >
+                                  Confirmar eliminación
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       ) : (
                         <span className="muted">Sin acciones</span>

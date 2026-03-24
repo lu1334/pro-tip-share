@@ -332,15 +332,14 @@ describe('DailyDetailPage', () => {
     ])
     createDailyParticipationMock.mockResolvedValue({})
 
-    const promptSpy = vi.spyOn(window, 'prompt')
-    promptSpy
-      .mockReturnValueOnce('3')
-      .mockReturnValueOnce('4')
-
     render(<DailyDetailPage />)
 
     await screen.findByText('Ana Lopez')
     await user.click(screen.getByRole('button', { name: 'Añadir trabajador' }))
+    await user.selectOptions(screen.getByLabelText('Trabajador'), '3')
+    await user.clear(screen.getByLabelText('Horas trabajadas'))
+    await user.type(screen.getByLabelText('Horas trabajadas'), '4')
+    await user.click(screen.getByRole('button', { name: 'Guardar trabajador' }))
 
     await waitFor(() => {
       expect(fetchAvailableWorkersMock).toHaveBeenCalledWith(12)
@@ -377,12 +376,14 @@ describe('DailyDetailPage', () => {
         ],
       })
     updateDailyParticipationMock.mockResolvedValue({})
-    vi.spyOn(window, 'prompt').mockReturnValue('9')
 
     render(<DailyDetailPage />)
 
     await screen.findByText('Ana Lopez')
     await user.click(screen.getByRole('button', { name: 'Editar horas' }))
+    await user.clear(screen.getByLabelText('Horas de Ana Lopez'))
+    await user.type(screen.getByLabelText('Horas de Ana Lopez'), '9')
+    await user.click(screen.getByRole('button', { name: 'Guardar horas' }))
 
     await waitFor(() => {
       expect(updateDailyParticipationMock).toHaveBeenCalledWith(30, {
@@ -406,12 +407,12 @@ describe('DailyDetailPage', () => {
         worker_rows: [],
       })
     deleteDailyParticipationMock.mockResolvedValue(undefined)
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     render(<DailyDetailPage />)
 
     await screen.findByText('Ana Lopez')
     await user.click(screen.getByRole('button', { name: 'Eliminar' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmar eliminación' }))
 
     await waitFor(() => {
       expect(deleteDailyParticipationMock).toHaveBeenCalledWith(30, '')

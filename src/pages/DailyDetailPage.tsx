@@ -207,6 +207,7 @@ export function DailyDetailPage() {
 
       if (!availableWorkers.length) {
         setError('No hay trabajadores disponibles para añadir a este día.')
+        setIsSubmittingAction(false)
         return
       }
 

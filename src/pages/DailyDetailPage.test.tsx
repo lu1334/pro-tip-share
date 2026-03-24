@@ -217,12 +217,14 @@ describe('DailyDetailPage', () => {
         total_amount: '120.50',
       })
     updateDailyTipMock.mockResolvedValue({})
-    vi.spyOn(window, 'prompt').mockReturnValue('120.50')
 
     render(<DailyDetailPage />)
 
     await screen.findByText('Ana Lopez')
     await user.click(screen.getByRole('button', { name: 'Editar bote' }))
+    await user.clear(screen.getByLabelText('Nuevo bote total'))
+    await user.type(screen.getByLabelText('Nuevo bote total'), '120.50')
+    await user.click(screen.getByRole('button', { name: 'Guardar bote' }))
 
     await waitFor(() => {
       expect(updateDailyTipMock).toHaveBeenCalledWith(12, {
@@ -241,12 +243,12 @@ describe('DailyDetailPage', () => {
       .mockResolvedValueOnce(dailyDetailFixture)
       .mockResolvedValueOnce(closedDailyDetailFixture)
     closeDailyTipMock.mockResolvedValue({})
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     render(<DailyDetailPage />)
 
     await screen.findByText('Ana Lopez')
     await user.click(screen.getByRole('button', { name: 'Cerrar día' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmar cierre' }))
 
     await waitFor(() => {
       expect(closeDailyTipMock).toHaveBeenCalledWith(12)
@@ -263,12 +265,12 @@ describe('DailyDetailPage', () => {
       .mockResolvedValueOnce(closedDailyDetailFixture)
       .mockResolvedValueOnce(dailyDetailFixture)
     reopenDailyTipMock.mockResolvedValue({})
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     render(<DailyDetailPage />)
 
     await screen.findByText('Ana Lopez')
     await user.click(screen.getByRole('button', { name: 'Reabrir día' }))
+    await user.click(screen.getByRole('button', { name: 'Confirmar reapertura' }))
 
     await waitFor(() => {
       expect(reopenDailyTipMock).toHaveBeenCalledWith(12)

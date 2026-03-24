@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { UnauthorizedError } from '../services/auth'
 import {
@@ -23,6 +24,10 @@ export function DailyDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
+  const [isEditingTotalAmount, setIsEditingTotalAmount] = useState(false)
+  const [draftTotalAmount, setDraftTotalAmount] = useState('')
+  const [draftTotalAmountReason, setDraftTotalAmountReason] = useState('')
+  const [isConfirmingClosedState, setIsConfirmingClosedState] = useState(false)
   const isMountedRef = useRef(true)
 
   useEffect(() => {
@@ -85,17 +90,25 @@ export function DailyDetailPage() {
     void loadDailyDetail()
   }, [loadDailyDetail])
 
-  async function handleEditTotalAmount() {
+  useEffect(() => {
     if (!dailyDetail) {
       return
     }
 
-    const nextAmount = window.prompt('Nuevo bote total del día', dailyDetail.total_amount)
-    if (nextAmount === null) {
+    setDraftTotalAmount(dailyDetail.total_amount)
+    setDraftTotalAmountReason('')
+    setIsEditingTotalAmount(false)
+    setIsConfirmingClosedState(false)
+  }, [dailyDetail])
+
+  async function handleSubmitTotalAmount(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!dailyDetail) {
       return
     }
 
-    const trimmedAmount = nextAmount.trim()
+    const trimmedAmount = draftTotalAmount.trim()
     if (!trimmedAmount) {
       setError('El bote total no puede quedar vacío.')
       return
@@ -108,9 +121,7 @@ export function DailyDetailPage() {
     }
 
     const normalizedAmount = parsedAmount.toFixed(2)
-    const changeReason = dailyDetail.is_closed
-      ? (window.prompt('Motivo del cambio (opcional)') ?? '').trim()
-      : ''
+    const changeReason = dailyDetail.is_closed ? draftTotalAmountReason.trim() : ''
 
     try {
       setIsSubmittingAction(true)
@@ -119,7 +130,10 @@ export function DailyDetailPage() {
         total_amount: normalizedAmount,
         change_reason: changeReason,
       })
-      await loadDailyDetail()
+      const didReload = await loadDailyDetail()
+      if (didReload && isMountedRef.current) {
+        setIsEditingTotalAmount(false)
+      }
     } catch (actionError) {
       if (actionError instanceof UnauthorizedError) {
         logout()
@@ -137,18 +151,8 @@ export function DailyDetailPage() {
     }
   }
 
-  async function handleToggleClosedState() {
+  async function handleConfirmClosedState() {
     if (!dailyDetail) {
-      return
-    }
-
-    const shouldProceed = window.confirm(
-      dailyDetail.is_closed
-        ? '¿Quieres reabrir este día?'
-        : '¿Quieres cerrar este día?',
-    )
-
-    if (!shouldProceed) {
       return
     }
 
@@ -162,7 +166,10 @@ export function DailyDetailPage() {
         await closeDailyTip(dailyDetail.id)
       }
 
-      await loadDailyDetail()
+      const didReload = await loadDailyDetail()
+      if (didReload && isMountedRef.current) {
+        setIsConfirmingClosedState(false)
+      }
     } catch (actionError) {
       if (actionError instanceof UnauthorizedError) {
         logout()
@@ -445,20 +452,111 @@ export function DailyDetailPage() {
           <button
             className="btn ghost"
             type="button"
-            onClick={handleEditTotalAmount}
+            onClick={() => {
+              setError(null)
+              setIsEditingTotalAmount((current) => !current)
+              setIsConfirmingClosedState(false)
+            }}
             disabled={isSubmittingAction}
           >
-            Editar bote
+            {isEditingTotalAmount ? 'Cancelar edición' : 'Editar bote'}
           </button>
           <button
             className="btn ghost"
             type="button"
-            onClick={handleToggleClosedState}
+            onClick={() => {
+              setError(null)
+              setIsConfirmingClosedState((current) => !current)
+              setIsEditingTotalAmount(false)
+            }}
             disabled={isSubmittingAction}
           >
-            {dailyDetail.is_closed ? 'Reabrir día' : 'Cerrar día'}
+            {isConfirmingClosedState
+              ? 'Cancelar cambio de estado'
+              : dailyDetail.is_closed
+                ? 'Reabrir día'
+                : 'Cerrar día'}
           </button>
         </div>
+
+        {isEditingTotalAmount ? (
+          <form className="stack gap-md" onSubmit={handleSubmitTotalAmount}>
+            <div className="field">
+              <label className="label" htmlFor="total-amount">
+                Nuevo bote total
+              </label>
+              <input
+                id="total-amount"
+                className="input"
+                value={draftTotalAmount}
+                onChange={(event) => setDraftTotalAmount(event.target.value)}
+                disabled={isSubmittingAction}
+              />
+            </div>
+
+            {dailyDetail.is_closed ? (
+              <div className="field">
+                <label className="label" htmlFor="total-amount-reason">
+                  Motivo del cambio
+                </label>
+                <input
+                  id="total-amount-reason"
+                  className="input"
+                  value={draftTotalAmountReason}
+                  onChange={(event) => setDraftTotalAmountReason(event.target.value)}
+                  disabled={isSubmittingAction}
+                />
+              </div>
+            ) : null}
+
+            <div className="actions-bar">
+              <button className="btn primary" type="submit" disabled={isSubmittingAction}>
+                Guardar bote
+              </button>
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={() => {
+                  setDraftTotalAmount(dailyDetail.total_amount)
+                  setDraftTotalAmountReason('')
+                  setIsEditingTotalAmount(false)
+                  setError(null)
+                }}
+                disabled={isSubmittingAction}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        ) : null}
+
+        {isConfirmingClosedState ? (
+          <div className="stack gap-md">
+            <p className="muted">
+              {dailyDetail.is_closed
+                ? 'Confirma si quieres reabrir este día.'
+                : 'Confirma si quieres cerrar este día.'}
+            </p>
+            <div className="actions-bar">
+              <button
+                className="btn primary"
+                type="button"
+                onClick={handleConfirmClosedState}
+                disabled={isSubmittingAction}
+              >
+                {dailyDetail.is_closed ? 'Confirmar reapertura' : 'Confirmar cierre'}
+              </button>
+              <button
+                className="btn ghost"
+                type="button"
+                onClick={() => setIsConfirmingClosedState(false)}
+                disabled={isSubmittingAction}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="card">

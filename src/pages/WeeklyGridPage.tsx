@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { UnauthorizedError } from '../services/auth'
 import { fetchWeeklyGrid } from '../services/tips'
+import { useAuthStore } from '../store/authStore'
 import type { WeeklyGridResponse } from '../types/api'
 
 export function WeeklyGridPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const logout = useAuthStore((state) => state.logout)
   const [weeklyGrid, setWeeklyGrid] = useState<WeeklyGridResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -20,6 +26,12 @@ export function WeeklyGridPage() {
           setWeeklyGrid(response)
         }
       } catch (loadError) {
+        if (loadError instanceof UnauthorizedError) {
+          logout()
+          navigate('/login', { replace: true, state: { from: location.pathname } })
+          return
+        }
+
         if (!ignore) {
           setError(
             loadError instanceof Error
@@ -120,11 +132,19 @@ export function WeeklyGridPage() {
                 <th>Trabajador</th>
                 {weeklyGrid.days.map((day) => (
                   <th key={day.date}>
-                    <div className="day-head">
-                      <span>{day.date}</span>
-                      <strong>{day.total_amount} EUR</strong>
-                      <small>{day.is_closed ? 'Cerrado' : 'Abierto'}</small>
-                    </div>
+                    {day.daily_tip_id ? (
+                      <Link className="day-head" to={`/daily/${day.daily_tip_id}`}>
+                        <span>{day.date}</span>
+                        <strong>{day.total_amount} EUR</strong>
+                        <small>{day.is_closed ? 'Cerrado' : 'Abierto'}</small>
+                      </Link>
+                    ) : (
+                      <div className="day-head">
+                        <span>{day.date}</span>
+                        <strong>{day.total_amount} EUR</strong>
+                        <small>{day.is_closed ? 'Cerrado' : 'Abierto'}</small>
+                      </div>
+                    )}
                   </th>
                 ))}
                 <th>Total semana</th>
@@ -144,11 +164,11 @@ export function WeeklyGridPage() {
 
                     return (
                       <td key={`${worker.user_id}-${day.date}`}>
-                        {cell ? (
-                          <div className="weekly-value">
+                        {cell && cell.daily_tip_id ? (
+                          <Link className="weekly-value" to={`/daily/${cell.daily_tip_id}`}>
                             <strong>{cell.amount} EUR</strong>
                             <span>{cell.hours_worked} h</span>
-                          </div>
+                          </Link>
                         ) : (
                           <div className="weekly-value weekly-value--empty">
                             <strong>0.00 EUR</strong>

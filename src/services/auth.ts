@@ -4,6 +4,13 @@ import type { ApiUser, LoginResponse } from '../types/api'
 const ACCESS_TOKEN_KEY = 'fairtip_access_token'
 const REFRESH_TOKEN_KEY = 'fairtip_refresh_token'
 
+export class UnauthorizedError extends Error {
+  constructor(message = 'La sesión ha expirado. Inicia sesión de nuevo.') {
+    super(message)
+    this.name = 'UnauthorizedError'
+  }
+}
+
 export function saveAuthTokens(accessToken: string, refreshToken: string) {
   localStorage.setItem(ACCESS_TOKEN_KEY, accessToken)
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
@@ -40,6 +47,11 @@ export async function fetchCurrentUser() {
     data = await response.json()
   } catch {
     data = {}
+  }
+
+  if (response.status === 401) {
+    clearAuthTokens()
+    throw new UnauthorizedError()
   }
 
   if (!response.ok) {

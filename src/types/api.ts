@@ -69,6 +69,24 @@ export interface DailyWorkerRow {
   amount: string
 }
 
+export interface AvailableWorker {
+  id: number
+  username: string
+  first_name: string
+  last_name: string
+  display_name: string
+  role: UserRole
+}
+
+export interface DailyParticipation {
+  id: number
+  daily_tip: number
+  user: ApiUser
+  hours_worked: string
+  role_at_time: UserRole
+  weight_at_time: string | null
+}
+
 export interface DailyTipHistoryEntry {
   id: number
   event_type: string
@@ -91,7 +109,7 @@ export interface DailyDetailResponse {
   is_closed: boolean
   closed_at: string | null
   closed_by: ApiUser | null
-  participations: unknown[]
+  participations: DailyParticipation[]
   distributions: unknown[]
   worker_rows: DailyWorkerRow[]
   history: DailyTipHistoryEntry[]

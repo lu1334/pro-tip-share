@@ -136,6 +136,13 @@ const closedDailyDetailFixture: DailyDetailResponse = {
   },
 }
 
+const emptyDailyDetailFixture: DailyDetailResponse = {
+  ...dailyDetailFixture,
+  participations: [],
+  worker_rows: [],
+  history: [],
+}
+
 describe('DailyDetailPage', () => {
   beforeEach(() => {
     navigateMock.mockReset()
@@ -253,6 +260,85 @@ describe('DailyDetailPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo actualizar el bote')
     expect(screen.getByText('Ana Lopez')).toBeInTheDocument()
     expect(screen.getByText('100.00 EUR')).toBeInTheDocument()
+  })
+
+  it('muestra estados vacíos de reparto e historial', async () => {
+    fetchDailyDetailMock.mockResolvedValue(emptyDailyDetailFixture)
+
+    render(<DailyDetailPage />)
+
+    expect(
+      await screen.findByText('No hay trabajadores cargados para este día.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Añade una participación para empezar a repartir el bote.')).toBeInTheDocument()
+    expect(screen.getByText('Todavía no hay eventos en el historial.')).toBeInTheDocument()
+    expect(screen.getByText('Cuando se registren cambios, aparecerán aquí.')).toBeInTheDocument()
+  })
+
+  it('mantiene visible el banner de error al cambiar entre paneles', async () => {
+    const user = userEvent.setup()
+    fetchDailyDetailMock.mockResolvedValue(dailyDetailFixture)
+    updateDailyTipMock.mockRejectedValue(new Error('No se pudo actualizar el bote'))
+
+    render(<DailyDetailPage />)
+
+    await screen.findByText('Ana Lopez')
+    await user.click(screen.getByRole('button', { name: 'Editar bote' }))
+    await user.clear(screen.getByLabelText('Nuevo bote total'))
+    await user.type(screen.getByLabelText('Nuevo bote total'), '120.50')
+    await user.click(screen.getByRole('button', { name: 'Guardar bote' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo actualizar el bote')
+
+    fetchAvailableWorkersMock.mockResolvedValue([
+      {
+        id: 3,
+        username: 'rosa',
+        first_name: 'Rosa',
+        last_name: 'Gil',
+        display_name: 'Rosa Gil',
+        role: 'kitchen',
+      },
+    ])
+
+    await user.click(screen.getByRole('button', { name: 'Añadir trabajador' }))
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Trabajador')).toBeInTheDocument()
+  })
+
+  it('solo muestra un panel superior activo cada vez', async () => {
+    const user = userEvent.setup()
+    fetchDailyDetailMock.mockResolvedValue(dailyDetailFixture)
+    fetchAvailableWorkersMock.mockResolvedValue([
+      {
+        id: 3,
+        username: 'rosa',
+        first_name: 'Rosa',
+        last_name: 'Gil',
+        display_name: 'Rosa Gil',
+        role: 'kitchen',
+      },
+    ])
+
+    render(<DailyDetailPage />)
+
+    await screen.findByText('Ana Lopez')
+
+    await user.click(screen.getByRole('button', { name: 'Editar bote' }))
+    expect(screen.getByLabelText('Nuevo bote total')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Confirmar cierre' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Trabajador')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Cerrar día' }))
+    expect(screen.getByRole('button', { name: 'Confirmar cierre' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Nuevo bote total')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Trabajador')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Añadir trabajador' }))
+    expect(await screen.findByLabelText('Trabajador')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Confirmar cierre' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Nuevo bote total')).not.toBeInTheDocument()
   })
 
   it('cierra el día y recarga el detalle', async () => {
